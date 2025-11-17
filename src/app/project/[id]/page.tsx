@@ -10,43 +10,45 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProject = async () => {
+      setLoading(true);
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('id', params.id)
         .single();
 
-      if (data) {
+      if (error) {
+        setError("Could not fetch project data.");
+        console.error(error);
+      } else if (data) {
         setProject(data);
-      } else {
-        // Fallback to mock data if no project is found in Supabase
-        setProject({
-          id: params.id,
-          name: 'Project Alpha',
-          videoTitle: 'Video_Final_V2.mp4',
-          status: 'In Review',
-          videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
-        });
       }
+      setLoading(false);
     };
 
     fetchProject();
   }, [params.id]);
 
-  if (!project) {
-    return <div>Loading...</div>;
+  if (loading) {
+    return <div className="flex h-screen w-full items-center justify-center bg-background-dark text-white">Loading project...</div>;
+  }
+
+  if (error || !project) {
+    return <div className="flex h-screen w-full items-center justify-center bg-background-dark text-white">{error || "Project not found."}</div>;
   }
 
   return (
     <div className="relative flex h-screen w-full flex-col overflow-hidden bg-background-dark text-[#E0E0E0]">
-      <Header projectName={project.name} videoTitle={project.videoTitle} status={project.status} />
+      <Header projectName={project.name} videoTitle={project.video_title} status={project.status} />
       <div className="flex flex-1 overflow-hidden">
         <AnnotationToolbar />
         <main className="flex flex-1 flex-col items-center justify-center p-8 bg-black">
-          <Player videoUrl={project.videoUrl} />
+          <Player videoUrl={project.video_url} />
         </main>
         <CommentsPanel projectId={project.id} />
       </div>
