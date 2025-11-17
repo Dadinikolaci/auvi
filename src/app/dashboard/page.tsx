@@ -57,7 +57,6 @@ export default function DashboardPage() {
             </div>
             <div className="lg:col-span-2 flex flex-col gap-6">
               <SubscriptionStatus />
-              {/* This could also be updated to fetch real activity data */}
               <RecentActivity />
             </div>
           </div>

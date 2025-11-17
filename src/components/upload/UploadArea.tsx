@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import * as tus from 'tus-js-client';
 
 interface UploadableFile {
   file: File;
@@ -21,42 +22,48 @@ const UploadArea = () => {
     const newFiles: UploadableFile[] = acceptedFiles.map(file => ({ file, progress: 0, status: 'uploading' }));
     setFiles(prev => [...prev, ...newFiles]);
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Handle case where user is not logged in
+      return;
+    }
+
     for (const newFile of newFiles) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not authenticated");
-
-        const filePath = `${user.id}/${Date.now()}_${newFile.file.name}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('media')
-          .upload(filePath, newFile.file, {
-            cacheControl: '3600',
-            upsert: false,
-            onProgress: ({ loaded, total }) => {
-              const progress = Math.round((loaded / total) * 100);
-              setFiles(prev => prev.map(f => f.file === newFile.file ? { ...f, progress } : f));
-            }
+      const filePath = `${session.user.id}/${Date.now()}_${newFile.file.name}`;
+      const upload = new tus.Upload(newFile.file, {
+        endpoint: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${session.access_token}`,
+          'x-upsert': 'true',
+        },
+        uploadDataDuringCreation: true,
+        metadata: {
+          bucketName: 'media',
+          objectName: filePath,
+          contentType: newFile.file.type,
+        },
+        chunkSize: 6 * 1024 * 1024,
+        onError: (error) => {
+          setFiles(prev => prev.map(f => f.file === newFile.file ? { ...f, status: 'error', error: error.message } : f));
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          const progress = Math.round((bytesUploaded / bytesTotal) * 100);
+          setFiles(prev => prev.map(f => f.file === newFile.file ? { ...f, progress } : f));
+        },
+        onSuccess: async () => {
+          const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
+          await supabase.from('projects').insert({
+            user_id: session.user.id,
+            name: newFile.file.name,
+            video_title: newFile.file.name,
+            video_url: urlData.publicUrl,
+            status: 'In Review',
           });
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
-
-        const { error: dbError } = await supabase.from('projects').insert({
-          user_id: user.id,
-          name: newFile.file.name,
-          video_title: newFile.file.name,
-          video_url: urlData.publicUrl,
-          status: 'In Review',
-        });
-
-        if (dbError) throw dbError;
-
-        setFiles(prev => prev.map(f => f.file === newFile.file ? { ...f, status: 'success' } : f));
-      } catch (error: any) {
-        setFiles(prev => prev.map(f => f.file === newFile.file ? { ...f, status: 'error', error: error.message } : f));
-      }
+          setFiles(prev => prev.map(f => f.file === newFile.file ? { ...f, status: 'success' } : f));
+        },
+      });
+      upload.start();
     }
   }, []);
 

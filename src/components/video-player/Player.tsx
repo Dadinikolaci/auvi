@@ -4,12 +4,14 @@ import React, { useRef, useState, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 import { fabric } from 'fabric';
 import { useAnnotationStore } from '@/lib/store';
+import { supabase } from '@/lib/supabaseClient';
 
 interface PlayerProps {
   videoUrl: string;
+  projectId: string;
 }
 
-const Player = ({ videoUrl }: PlayerProps) => {
+const Player = ({ videoUrl, projectId }: PlayerProps) => {
   const playerRef = useRef<ReactPlayer>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
@@ -75,6 +77,25 @@ const Player = ({ videoUrl }: PlayerProps) => {
           canvas.add(text);
           canvas.setActiveObject(text);
           text.enterEditing();
+
+          text.on('editing:exited', async () => {
+            if (playerRef.current) {
+              const timestamp = playerRef.current.getCurrentTime();
+              const annotationData = text.toObject();
+
+              const { error } = await supabase.from('annotations').insert({
+                project_id: projectId,
+                timestamp: timestamp,
+                tool: 'text',
+                data: annotationData,
+              });
+
+              if (error) {
+                console.error('Error saving text annotation:', error);
+              }
+            }
+          });
+
           isDrawing = false;
           break;
       }
@@ -101,16 +122,56 @@ const Player = ({ videoUrl }: PlayerProps) => {
       canvas.renderAll();
     });
 
-    canvas.on('mouse:up', () => {
+    canvas.on('mouse:up', async (o) => {
+      if (isDrawing && currentShape && tool && playerRef.current) {
+        const timestamp = playerRef.current.getCurrentTime();
+        const annotationData = currentShape.toObject();
+
+        const { error } = await supabase.from('annotations').insert({
+          project_id: projectId,
+          timestamp: timestamp,
+          tool: tool,
+          data: annotationData,
+        });
+
+        if (error) {
+          console.error('Error saving annotation:', error);
+        }
+      }
       isDrawing = false;
       currentShape = null;
     });
+
+    // Load existing annotations
+    const loadAnnotations = async () => {
+      const { data, error } = await supabase
+        .from('annotations')
+        .select('data')
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error('Error fetching annotations:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const objects = data.map(item => item.data);
+        fabric.util.enlivenObjects(objects, (enlivenedObjects: fabric.Object[]) => {
+          enlivenedObjects.forEach(obj => {
+            canvas.add(obj);
+          });
+          canvas.renderAll();
+        }, 'fabric');
+      }
+    };
+
+    loadAnnotations();
 
     return () => {
       window.removeEventListener('resize', handleResize);
       canvas.dispose();
     };
-  }, [tool]);
+  }, [tool, projectId]);
 
   const handlePlayPause = () => setPlaying(!playing);
   const handleProgress = (state: any) => setProgress(state);

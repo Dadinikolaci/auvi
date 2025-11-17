@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import Sidebar from '@/components/dashboard/Sidebar'; // Reusing the main sidebar
+import Sidebar from '@/components/dashboard/Sidebar';
 import UploadArea from '@/components/upload/UploadArea';
 
 export default function UploadPage() {

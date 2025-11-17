@@ -48,7 +48,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       <div className="flex flex-1 overflow-hidden">
         <AnnotationToolbar />
         <main className="flex flex-1 flex-col items-center justify-center p-8 bg-black">
-          <Player videoUrl={project.video_url} />
+          <Player videoUrl={project.video_url} projectId={project.id} />
         </main>
         <CommentsPanel projectId={project.id} />
       </div>
