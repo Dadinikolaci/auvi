@@ -1,9 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-
+import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -27,6 +28,9 @@ const formSchema = z.object({
 
 const LoginForm = () => {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -35,13 +39,20 @@ const LoginForm = () => {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock authentication
-    console.log("Login submitted", values)
-    // In a real app, you'd call an API here.
-    // For the MVP, we'll just simulate a successful login.
-    localStorage.setItem("user", JSON.stringify({ email: values.email, isAuthenticated: true }))
-    router.push('/dashboard')
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      router.push('/dashboard');
+    }
   }
 
   return (
@@ -56,7 +67,7 @@ const LoginForm = () => {
               <FormItem>
                 <FormLabel className="text-white text-base font-medium leading-normal" htmlFor="email">Email address</FormLabel>
                 <FormControl>
-                  <Input id="email" placeholder="your.email@example.com" {...field} className="form-input h-14 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-[#3b3c54] bg-[#1c1c27] p-[15px] text-base font-normal leading-normal text-white placeholder:text-[#9d9db9] focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/40" />
+                  <Input id="email" placeholder="your.email@example.com" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -72,22 +83,20 @@ const LoginForm = () => {
                   <a className="text-sm font-medium text-primary hover:underline" href="#">Forgot password?</a>
                 </div>
                 <FormControl>
-                  <Input id="password" type="password" {...field} className="form-input h-14 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-[#3b3c54] bg-[#1c1c27] p-[15px] text-base font-normal leading-normal text-white placeholder:text-[#9d9db9] focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/40" />
+                  <Input id="password" type="password" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="pt-2">
-            <Button type="submit" className="flex w-full items-center justify-center rounded-lg bg-primary h-14 px-4 py-2 text-base font-bold text-white shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark">
-              Sign In
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Signing In..." : "Sign In"}
             </Button>
           </div>
         </form>
       </Form>
-      <p className="mt-8 text-center text-sm text-[#9d9db9]">
-        Don't have an account? <a className="font-medium text-primary hover:underline" href="#">Sign up</a>
-      </p>
     </>
   )
 }

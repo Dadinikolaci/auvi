@@ -1,9 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-
+import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -30,6 +31,9 @@ const formSchema = z.object({
 
 const SignUpForm = () => {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -39,13 +43,26 @@ const SignUpForm = () => {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock user creation
-    console.log("Sign up submitted", values)
-    // In a real app, you'd call an API here.
-    // For the MVP, we'll just simulate a successful sign up.
-    localStorage.setItem("user", JSON.stringify({ email: values.email, isAuthenticated: true, name: values.name }))
-    router.push('/dashboard')
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        data: {
+          full_name: values.name,
+        }
+      }
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      // Supabase sends a confirmation email. For this MVP, we'll just redirect.
+      router.push('/dashboard');
+    }
   }
 
   return (
@@ -60,7 +77,7 @@ const SignUpForm = () => {
               <FormItem>
                 <FormLabel className="text-white text-base font-medium leading-normal">Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} className="form-input h-14 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-[#3b3c54] bg-[#1c1c27] p-[15px] text-base font-normal leading-normal text-white placeholder:text-[#9d9db9] focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/40" />
+                  <Input placeholder="John Doe" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -73,7 +90,7 @@ const SignUpForm = () => {
               <FormItem>
                 <FormLabel className="text-white text-base font-medium leading-normal">Email address</FormLabel>
                 <FormControl>
-                  <Input placeholder="your.email@example.com" {...field} className="form-input h-14 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-[#3b3c54] bg-[#1c1c27] p-[15px] text-base font-normal leading-normal text-white placeholder:text-[#9d9db9] focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/40" />
+                  <Input placeholder="your.email@example.com" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -86,22 +103,20 @@ const SignUpForm = () => {
               <FormItem>
                 <FormLabel className="text-white text-base font-medium leading-normal">Password</FormLabel>
                 <FormControl>
-                  <Input type="password" {...field} className="form-input h-14 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-[#3b3c54] bg-[#1c1c27] p-[15px] text-base font-normal leading-normal text-white placeholder:text-[#9d9db9] focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/40" />
+                  <Input type="password" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="pt-2">
-            <Button type="submit" className="flex w-full items-center justify-center rounded-lg bg-primary h-14 px-4 py-2 text-base font-bold text-white shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark">
-              Create Account
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
         </form>
       </Form>
-      <p className="mt-8 text-center text-sm text-[#9d9db9]">
-        Already have an account? <a className="font-medium text-primary hover:underline" href="#">Sign in</a>
-      </p>
     </>
   )
 }
