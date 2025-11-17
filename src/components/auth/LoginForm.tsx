@@ -98,7 +98,7 @@ const LoginForm = ({ toggleForm }: { toggleForm: () => void }) => {
         </form>
       </Form>
       <p className="mt-8 text-center text-sm text-[#9d9db9]">
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <button onClick={toggleForm} className="font-medium text-primary hover:underline">
           Sign up
         </button>
