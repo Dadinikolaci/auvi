@@ -29,7 +29,7 @@ const formSchema = z.object({
   }),
 })
 
-const SignUpForm = () => {
+const SignUpForm = ({ toggleForm }: { toggleForm: () => void }) => {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -117,6 +117,12 @@ const SignUpForm = () => {
           </div>
         </form>
       </Form>
+      <p className="mt-8 text-center text-sm text-[#9d9db9]">
+        Already have an account?{" "}
+        <button onClick={toggleForm} className="font-medium text-primary hover:underline">
+          Sign in
+        </button>
+      </p>
     </>
   )
 }

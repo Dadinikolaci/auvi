@@ -25,7 +25,7 @@ const AuthForm = () => {
           </button>
         </div>
       </div>
-      {isLogin ? <LoginForm /> : <SignUpForm />}
+      {isLogin ? <LoginForm toggleForm={() => setIsLogin(false)} /> : <SignUpForm toggleForm={() => setIsLogin(true)} />}
     </div>
   );
 };

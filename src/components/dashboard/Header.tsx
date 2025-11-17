@@ -1,15 +1,19 @@
 "use client";
+
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
 const Header = () => {
-    const [userName, setUserName] = useState('John');
+    const [userName, setUserName] = useState('User');
 
     useEffect(() => {
-        const user = localStorage.getItem('user');
-        if (user) {
-            const parsedUser = JSON.parse(user);
-            setUserName(parsedUser.name || 'John');
-        }
+        const fetchUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setUserName(user.user_metadata.full_name || user.email || 'User');
+            }
+        };
+        fetchUser();
     }, []);
 
     return (
