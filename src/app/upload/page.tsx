@@ -1,3 +1,4 @@
+"use client";
 export const dynamic = 'force-dynamic';
 
 import Sidebar from '@/components/dashboard/Sidebar'; // Reusing the main sidebar
